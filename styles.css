@@ -1,5 +1,10 @@
-.view-content:has(.as-container) {
+.workspace-leaf-content[data-type="agentfiles-view"] .view-header {
+	display: none;
+}
+
+.workspace-leaf-content[data-type="agentfiles-view"] .view-content {
 	padding: 0 !important;
+	height: 100%;
 }
 
 .as-container {
