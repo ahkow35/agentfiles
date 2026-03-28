@@ -1,6 +1,7 @@
 import { Events } from "obsidian";
 import type { SkillItem, SidebarFilter, ChopsSettings } from "./types";
 import { scanAll } from "./scanner";
+import { getSkillkitStats, isSkillkitAvailable } from "./skillkit";
 
 export class SkillStore extends Events {
 	private items: Map<string, SkillItem> = new Map();
@@ -58,9 +59,38 @@ export class SkillStore extends Events {
 		return this.items.get(id);
 	}
 
+	get hasSkillkit(): boolean {
+		return isSkillkitAvailable();
+	}
+
 	refresh(settings: ChopsSettings): void {
 		this.items = scanAll(settings);
+		this.enrichWithSkillkit();
 		this.trigger("updated");
+	}
+
+	private enrichWithSkillkit(): void {
+		if (!isSkillkitAvailable()) return;
+		const stats = getSkillkitStats();
+
+		for (const item of this.items.values()) {
+			const dirName = item.filePath.split("/").slice(-2, -1)[0];
+			const baseName = item.name.toLowerCase().replace(/\s+/g, "-");
+
+			const match = stats.get(item.name) || stats.get(dirName) || stats.get(baseName);
+			if (match) {
+				match.isHeavy = item.content.length > 5000;
+				item.usage = match;
+			} else {
+				item.usage = {
+					uses: 0,
+					lastUsed: null,
+					daysSinceUsed: null,
+					isStale: false,
+					isHeavy: item.content.length > 5000,
+				};
+			}
+		}
 	}
 
 	setFilter(filter: SidebarFilter): void {

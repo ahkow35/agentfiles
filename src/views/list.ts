@@ -99,6 +99,22 @@ export class ListPanel {
 			}
 		}
 
+		if (item.usage) {
+			if (item.usage.uses > 0) {
+				meta.createSpan({
+					cls: "as-usage-badge",
+					text: `${item.usage.uses}`,
+					attr: { "aria-label": `Used ${item.usage.uses} times` },
+				});
+			}
+			if (item.usage.isStale) {
+				meta.createSpan({ cls: "as-badge-stale", text: "stale" });
+			}
+			if (item.usage.isHeavy) {
+				meta.createSpan({ cls: "as-badge-heavy", text: "heavy" });
+			}
+		}
+
 		card.addEventListener("click", () => {
 			this.selectedId = item.id;
 			this.onSelect(item);

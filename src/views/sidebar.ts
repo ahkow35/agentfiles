@@ -7,10 +7,17 @@ import type { SidebarFilter } from "../types";
 export class SidebarPanel {
 	private containerEl: HTMLElement;
 	private store: SkillStore;
+	private onToggleDashboard: () => void;
+	private dashboardActive = false;
 
-	constructor(containerEl: HTMLElement, store: SkillStore) {
+	constructor(containerEl: HTMLElement, store: SkillStore, onToggleDashboard: () => void) {
 		this.containerEl = containerEl;
 		this.store = store;
+		this.onToggleDashboard = onToggleDashboard;
+	}
+
+	setDashboardActive(active: boolean): void {
+		this.dashboardActive = active;
 	}
 
 	render(): void {
@@ -26,9 +33,14 @@ export class SidebarPanel {
 			},
 		]);
 
+		this.renderDashboardButton();
 		this.renderTypeSection();
 		this.renderToolSection();
 		this.renderCollectionSection();
+
+		if (!this.store.hasSkillkit) {
+			this.renderSkillkitCta();
+		}
 	}
 
 	private renderSection(
@@ -143,6 +155,41 @@ export class SidebarPanel {
 
 			row.addEventListener("click", () => this.store.setFilter(filter));
 		}
+	}
+
+	private renderDashboardButton(): void {
+		const section = this.containerEl.createDiv("as-sidebar-section");
+		const row = section.createDiv("as-sidebar-item");
+		if (this.dashboardActive) row.addClass("is-active");
+
+		const iconEl = row.createSpan("as-sidebar-icon");
+		setIcon(iconEl, "bar-chart-2");
+		row.createSpan({ cls: "as-sidebar-label", text: "Dashboard" });
+
+		row.addEventListener("click", () => this.onToggleDashboard());
+	}
+
+	private renderSkillkitCta(): void {
+		const cta = this.containerEl.createDiv("as-skillkit-cta");
+		const iconEl = cta.createDiv("as-skillkit-icon");
+		setIcon(iconEl, "bar-chart-2");
+		cta.createDiv({ cls: "as-skillkit-title", text: "Unlock analytics" });
+		cta.createDiv({
+			cls: "as-skillkit-desc",
+			text: "Install skillkit to see usage stats, stale badges, and heavy skill warnings.",
+		});
+		const cmd = cta.createDiv("as-skillkit-cmd");
+		cmd.createEl("code", { text: "npm i -g skillkit" });
+		const link = cta.createEl("a", {
+			cls: "as-skillkit-link",
+			text: "Learn more",
+			href: "https://www.npmjs.com/package/skillkit",
+		});
+		link.addEventListener("click", (e) => {
+			e.preventDefault();
+			const { shell } = require("electron");
+			shell.openExternal("https://www.npmjs.com/package/skillkit");
+		});
 	}
 
 	private isActive(filter: SidebarFilter): boolean {

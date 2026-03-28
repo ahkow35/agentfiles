@@ -33,6 +33,13 @@ export interface SkillItem {
 	fileSize: number;
 	isFavorite: boolean;
 	collections: string[];
+	usage?: {
+		uses: number;
+		lastUsed: string | null;
+		daysSinceUsed: number | null;
+		isStale: boolean;
+		isHeavy: boolean;
+	};
 }
 
 export type SidebarFilter =

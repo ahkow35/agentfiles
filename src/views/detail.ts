@@ -4,6 +4,7 @@ import type { SkillItem, ChopsSettings } from "../types";
 import type { SkillStore } from "../store";
 import { TOOL_CONFIGS } from "../tool-configs";
 import { TOOL_SVGS, renderToolIcon } from "../tool-icons";
+import { formatLastUsed } from "../skillkit";
 
 function estimateTokens(text: string): number {
 	return Math.ceil(text.length / 4);
@@ -143,6 +144,21 @@ export class DetailPanel {
 		meta.createSpan({ cls: "as-meta-item", text: `~${formatNumber(tokens)} tokens` });
 		meta.createSpan({ cls: "as-meta-item", text: formatDate(item.lastModified) });
 		meta.createSpan({ cls: "as-meta-item as-meta-type", text: item.type });
+
+		if (item.usage && item.usage.uses > 0) {
+			const usageMeta = toolbar.createDiv("as-detail-usage-bar");
+			usageMeta.createSpan({ cls: "as-usage-stat", text: `${item.usage.uses} uses` });
+			usageMeta.createSpan({
+				cls: "as-usage-stat",
+				text: `last: ${formatLastUsed(item.usage.lastUsed)}`,
+			});
+			if (item.usage.isStale) {
+				usageMeta.createSpan({ cls: "as-badge-stale", text: "stale" });
+			}
+			if (item.usage.isHeavy) {
+				usageMeta.createSpan({ cls: "as-badge-heavy", text: "heavy" });
+			}
+		}
 	}
 
 	private renderFrontmatter(container: HTMLElement, item: SkillItem): void {
