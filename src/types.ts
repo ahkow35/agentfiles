@@ -1,0 +1,61 @@
+export interface ToolConfig {
+	id: string;
+	name: string;
+	color: string;
+	icon: string;
+	svg?: string;
+	paths: SkillPath[];
+	agentPaths: SkillPath[];
+	isInstalled: () => boolean;
+}
+
+export interface SkillPath {
+	baseDir: string;
+	type: SkillType;
+	pattern: ScanPattern;
+}
+
+export type SkillType = "skill" | "command" | "agent" | "rule" | "memory";
+export type ScanPattern = "directory-with-skillmd" | "flat-md" | "mdc";
+
+export interface SkillItem {
+	id: string;
+	name: string;
+	description: string;
+	type: SkillType;
+	tools: string[];
+	filePath: string;
+	realPath: string;
+	dirPath: string;
+	content: string;
+	frontmatter: Record<string, unknown>;
+	lastModified: number;
+	fileSize: number;
+	isFavorite: boolean;
+	collections: string[];
+}
+
+export type SidebarFilter =
+	| { kind: "all" }
+	| { kind: "favorites" }
+	| { kind: "tool"; toolId: string }
+	| { kind: "type"; type: SkillType }
+	| { kind: "collection"; name: string };
+
+export interface ChopsSettings {
+	tools: Record<string, { enabled: boolean; customPaths: string[] }>;
+	watchEnabled: boolean;
+	watchDebounceMs: number;
+	favorites: string[];
+	collections: Record<string, string[]>;
+	customScanPaths: string[];
+}
+
+export const DEFAULT_SETTINGS: ChopsSettings = {
+	tools: {},
+	watchEnabled: true,
+	watchDebounceMs: 500,
+	favorites: [],
+	collections: {},
+	customScanPaths: [],
+};
