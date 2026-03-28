@@ -32,7 +32,7 @@ Discover, organize, and edit AI agent skills, commands, and agents across Claude
 
 Search **Agentfiles** in Obsidian's Community plugins browser, or install manually:
 
-1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/Railly/obsidian-agent-skills/releases)
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/Railly/agentfiles/releases)
 2. Create `~/.obsidian/plugins/agentfiles/` in your vault
 3. Copy the three files into that folder
 4. Enable the plugin in Settings > Community plugins
@@ -43,6 +43,10 @@ Search **Agentfiles** in Obsidian's Community plugins browser, or install manual
 2. Browse skills by tool or type in the sidebar
 3. Click any skill to preview its content
 4. Click the pencil icon to edit, Cmd+S to save
+
+## Related: skillkit
+
+If you manage skills from the terminal, check out [skillkit](https://www.npmjs.com/package/skillkit) — a CLI for skill analytics, health checks, context budget tracking, and dead weight analysis. Agentfiles gives you the visual browser inside Obsidian; skillkit gives you the operational layer from the command line. They work great together.
 
 ## Desktop only
 
