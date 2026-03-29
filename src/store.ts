@@ -1,6 +1,6 @@
-import { Events } from "obsidian";
+import { Events, Notice } from "obsidian";
 import type { SkillItem, SidebarFilter, ChopsSettings } from "./types";
-import { scanAll } from "./scanner";
+import { scanAll, scannerErrors } from "./scanner";
 import { getSkillkitStats, isSkillkitAvailable } from "./skillkit";
 
 export class SkillStore extends Events {
@@ -66,6 +66,12 @@ export class SkillStore extends Events {
 	async refresh(settings: ChopsSettings): Promise<void> {
 		this.items = scanAll(settings);
 		await this.enrichWithSkillkit();
+
+		if (!scannerErrors.isEmpty) {
+			new Notice(scannerErrors.summary(), 6000);
+			scannerErrors.flush();
+		}
+
 		this.trigger("updated");
 	}
 
@@ -89,6 +95,13 @@ export class SkillStore extends Events {
 					isStale: false,
 					isHeavy: item.content.length > 5000,
 				};
+			}
+		}
+
+		// Second pass: ensure isHeavy is set for all skills based on content length
+		for (const [id, item] of this.items.entries()) {
+			if (item.usage) {
+				item.usage.isHeavy = item.content.length > 5000;
 			}
 		}
 	}

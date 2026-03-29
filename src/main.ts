@@ -13,7 +13,7 @@ export default class AgentfilesPlugin extends Plugin {
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
-		this.addVaultPath();
+		await this.addVaultPath();
 
 		this.registerView(VIEW_TYPE, (leaf) =>
 			new AgentfilesView(
@@ -38,12 +38,13 @@ export default class AgentfilesPlugin extends Plugin {
 		this.startWatcher();
 	}
 
-	private addVaultPath(): void {
+	private async addVaultPath(): Promise<void> {
 		const adapter = this.app.vault.adapter as FileSystemAdapter;
 		if (!adapter.getBasePath) return;
 		const vaultPath = adapter.getBasePath();
 		if (!this.settings.customScanPaths.includes(vaultPath)) {
 			this.settings.customScanPaths.push(vaultPath);
+			await this.saveSettings();
 		}
 	}
 
@@ -56,22 +57,20 @@ export default class AgentfilesPlugin extends Plugin {
 	}
 
 	startWatcher(): void {
+		this.stopWatcher();
 		if (!this.settings.watchEnabled) return;
-		this.watcher = new SkillWatcher(this.settings.watchDebounceMs, () =>
-			this.refreshStore()
-		);
-		this.watcher.watchPaths(getWatchPaths());
+		this.watcher = new SkillWatcher();
+		this.watcher.start(getWatchPaths(this.settings), () => this.refreshStore());
 	}
 
 	stopWatcher(): void {
 		if (this.watcher) {
-			this.watcher.close();
+			this.watcher.stop();
 			this.watcher = null;
 		}
 	}
 
 	restartWatcher(): void {
-		this.stopWatcher();
 		this.startWatcher();
 	}
 
@@ -92,5 +91,6 @@ export default class AgentfilesPlugin extends Plugin {
 
 	async saveSettings(): Promise<void> {
 		await this.saveData(this.settings);
+		this.startWatcher();
 	}
 }
