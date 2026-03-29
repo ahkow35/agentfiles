@@ -236,12 +236,14 @@ export class DetailPanel {
 	}
 
 	private saveFile(item: SkillItem, content: string): void {
+		const targetPath = item.realPath ?? item.filePath;
 		try {
-			writeFileSync(item.filePath, content, "utf-8");
+			writeFileSync(targetPath, content, "utf-8");
 			item.content = content;
-			new Notice(`Saved ${item.name}`);
+			item.lastModified = Date.now();
+			new Notice(`Saved: ${item.name}`);
 		} catch (e: unknown) {
-			new Notice(`Failed to save: ${e instanceof Error ? e.message : String(e)}`);
+			new Notice(`Failed to save ${item.name}: ${e instanceof Error ? e.message : String(e)}`);
 		}
 	}
 }
