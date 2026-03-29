@@ -298,15 +298,15 @@ export function getInstalledTools(): string[] {
 	return TOOL_CONFIGS.filter((t) => t.isInstalled()).map((t) => t.id);
 }
 
-export function getWatchPaths(): string[] {
-	const paths: string[] = [];
-	for (const tool of TOOL_CONFIGS) {
-		if (!tool.isInstalled()) continue;
-		for (const sp of [...tool.paths, ...tool.agentPaths]) {
-			if (existsSync(sp.baseDir)) {
-				paths.push(sp.baseDir);
-			}
-		}
-	}
-	return paths;
+export function getWatchPaths(settings: ChopsSettings): string[] {
+	const toolPaths = TOOL_CONFIGS
+		.filter(t => t.isInstalled())
+		.flatMap(t => [...t.paths, ...t.agentPaths])
+		.map(sp => sp.baseDir)
+		.filter(p => existsSync(p))
+
+	const customPaths = (settings.customScanPaths ?? [])
+		.filter(p => isSafePath(p) && existsSync(p))
+
+	return [...new Set([...toolPaths, ...customPaths])]
 }

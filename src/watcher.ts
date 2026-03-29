@@ -1,44 +1,32 @@
-import { watch, type FSWatcher } from "fs";
+import chokidar, { FSWatcher } from 'chokidar'
+
+type RefreshFn = () => void
 
 export class SkillWatcher {
-	private watchers: FSWatcher[] = [];
-	private debounceTimer: ReturnType<typeof setTimeout> | null = null;
-	private debounceMs: number;
-	private onChange: () => void;
+  private watcher: FSWatcher | null = null
 
-	constructor(debounceMs: number, onChange: () => void) {
-		this.debounceMs = debounceMs;
-		this.onChange = onChange;
-	}
+  start(paths: string[], onRefresh: RefreshFn): void {
+    this.stop()
+    if (paths.length === 0) return
 
-	watchPaths(paths: string[]): void {
-		this.close();
-		for (const p of paths) {
-			try {
-				const w = watch(p, { recursive: true }, () => this.scheduleUpdate());
-				this.watchers.push(w);
-			} catch { /* empty */ }
-		}
-	}
+    this.watcher = chokidar.watch(paths, {
+      persistent: false,
+      ignoreInitial: true,
+      awaitWriteFinish: {
+        stabilityThreshold: 300,
+        pollInterval: 100,
+      },
+      ignored: /(^|[/\\])\../,
+    })
 
-	private scheduleUpdate(): void {
-		if (this.debounceTimer) clearTimeout(this.debounceTimer);
-		this.debounceTimer = setTimeout(() => {
-			this.debounceTimer = null;
-			this.onChange();
-		}, this.debounceMs);
-	}
+    this.watcher.on('add', onRefresh)
+    this.watcher.on('change', onRefresh)
+    this.watcher.on('unlink', onRefresh)
+    this.watcher.on('error', (err) => console.warn('[agentfiles] watcher error:', err))
+  }
 
-	close(): void {
-		if (this.debounceTimer) {
-			clearTimeout(this.debounceTimer);
-			this.debounceTimer = null;
-		}
-		for (const w of this.watchers) {
-			try {
-				w.close();
-			} catch { /* empty */ }
-		}
-		this.watchers = [];
-	}
+  stop(): void {
+    this.watcher?.close()
+    this.watcher = null
+  }
 }
