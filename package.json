@@ -5,12 +5,18 @@
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
-		"build": "node esbuild.config.mjs production"
+		"build": "node esbuild.config.mjs production",
+		"test": "vitest run",
+		"test:watch": "vitest"
 	},
 	"devDependencies": {
-		"@types/node": "^22.0.0",
+		"@types/node": "^22.19.15",
 		"esbuild": "^0.25.0",
 		"obsidian": "latest",
-		"typescript": "^5.7.0"
+		"typescript": "^5.7.0",
+		"vitest": "^4.1.2"
+	},
+	"dependencies": {
+		"chokidar": "^5.0.0"
 	}
 }
