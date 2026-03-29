@@ -63,15 +63,15 @@ export class SkillStore extends Events {
 		return isSkillkitAvailable();
 	}
 
-	refresh(settings: ChopsSettings): void {
+	async refresh(settings: ChopsSettings): Promise<void> {
 		this.items = scanAll(settings);
-		this.enrichWithSkillkit();
+		await this.enrichWithSkillkit();
 		this.trigger("updated");
 	}
 
-	private enrichWithSkillkit(): void {
+	private async enrichWithSkillkit(): Promise<void> {
 		if (!isSkillkitAvailable()) return;
-		const stats = getSkillkitStats();
+		const stats = await getSkillkitStats();
 
 		for (const item of this.items.values()) {
 			const dirName = item.filePath.split("/").slice(-2, -1)[0];

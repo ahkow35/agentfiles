@@ -52,7 +52,7 @@ export default class AgentfilesPlugin extends Plugin {
 	}
 
 	refreshStore(): void {
-		this.store.refresh(this.settings);
+		void this.store.refresh(this.settings);
 	}
 
 	startWatcher(): void {

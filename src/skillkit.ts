@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { execFile } from "child_process";
 import { existsSync, readdirSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
@@ -61,7 +61,7 @@ function findSkillkitBin(): string | null {
 }
 
 let _bin: string | null | undefined;
-function getSkillkitBin(): string | null {
+export function getSkillkitBin(): string | null {
 	if (_bin === undefined) _bin = findSkillkitBin();
 	return _bin;
 }
@@ -78,31 +78,48 @@ export function isSkillkitAvailable(): boolean {
 	return getSkillkitBin() !== null || existsSync(DB_PATH);
 }
 
-export function runSkillkitJson(cmd: string): unknown | null {
-	const bin = getSkillkitBin();
-	if (!bin) return null;
-	try {
-		const out = execSync(`${bin} ${cmd} --json`, {
-			encoding: "utf-8",
-			timeout: 15000,
-			env: { ...process.env, NO_COLOR: "1", PATH: buildPath() },
-			stdio: ["pipe", "pipe", "pipe"],
-		}).trim();
-		const jsonStart = out.indexOf("{");
-		const jsonStartArr = out.indexOf("[");
-		const start = jsonStart === -1 ? jsonStartArr : jsonStartArr === -1 ? jsonStart : Math.min(jsonStart, jsonStartArr);
-		if (start === -1) return null;
-		return JSON.parse(out.slice(start));
-	} catch { /* empty */ return null; }
+const SKILLKIT_TIMEOUT_MS = 5000
+
+export function runSkillkitJson<T>(bin: string, args: string[]): Promise<T> {
+	return new Promise((resolve, reject) => {
+		const child = execFile(
+			bin,
+			[...args, '--json'],
+			{ timeout: SKILLKIT_TIMEOUT_MS },
+			(error, stdout, stderr) => {
+				if (error) {
+					reject(error)
+					return
+				}
+				try {
+					const start = stdout.indexOf('{')
+					if (start === -1) {
+						reject(new Error(`No JSON in skillkit output. stderr: ${stderr}`))
+						return
+					}
+					resolve(JSON.parse(stdout.slice(start)) as T)
+				} catch (parseError) {
+					reject(parseError)
+				}
+			}
+		)
+		child.on('error', reject)
+	})
 }
 
-export function getSkillkitStats(): Map<string, SkillkitStats> {
+export async function getSkillkitStats(): Promise<Map<string, SkillkitStats>> {
 	const stats = new Map<string, SkillkitStats>();
 	if (!isSkillkitAvailable()) return stats;
 
-	const data = runSkillkitJson("stats") as {
-		top_skills: { name: string; total: number; daily: { date: string; count: number }[] }[];
-	} | null;
+	const bin = getSkillkitBin();
+	if (!bin) return stats;
+
+	let data: { top_skills: { name: string; total: number; daily: { date: string; count: number }[] }[] } | null = null;
+	try {
+		data = await runSkillkitJson<{ top_skills: { name: string; total: number; daily: { date: string; count: number }[] }[] }>(bin, ['stats']);
+	} catch {
+		return stats;
+	}
 
 	if (!data?.top_skills) return stats;
 

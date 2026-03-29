@@ -1,6 +1,6 @@
 import { setIcon } from "obsidian";
 import { shell } from "electron";
-import { isSkillkitAvailable, runSkillkitJson } from "../skillkit";
+import { isSkillkitAvailable, runSkillkitJson, getSkillkitBin } from "../skillkit";
 
 interface StatsJson {
 	period: { days: number };
@@ -42,11 +42,24 @@ interface DashboardData {
 	context: ContextJson | null;
 }
 
-function loadData(): DashboardData {
-	const stats = runSkillkitJson("stats") as StatsJson | null;
-	const health = runSkillkitJson("health") as HealthJson | null;
-	const burnArr = runSkillkitJson("burn") as BurnAgent[] | null;
-	const context = runSkillkitJson("context") as ContextJson | null;
+async function loadData(): Promise<DashboardData> {
+	const bin = getSkillkitBin();
+	if (!bin) return { stats: null, health: null, burn: null, context: null };
+
+	async function tryRun<T>(args: string[]): Promise<T | null> {
+		try {
+			return await runSkillkitJson<T>(bin, args);
+		} catch {
+			return null;
+		}
+	}
+
+	const [stats, health, burnArr, context] = await Promise.all([
+		tryRun<StatsJson>(['stats']),
+		tryRun<HealthJson>(['health']),
+		tryRun<BurnAgent[]>(['burn']),
+		tryRun<ContextJson>(['context']),
+	]);
 
 	return {
 		stats,
@@ -77,18 +90,19 @@ export class DashboardPanel {
 		loading.createDiv({ cls: "as-dash-loading-text", text: "Loading analytics..." });
 
 		setTimeout(() => {
-			const data = loadData();
-			loading.remove();
+			void loadData().then((data) => {
+				loading.remove();
 
-			if (data.stats) this.renderOverview(data.stats, data.health);
-			if (data.stats) this.renderTopSkills(data.stats);
-			if (data.health || data.context) {
-				const row = this.containerEl.createDiv("as-dash-row");
-				if (data.health) this.renderHealth(data.health, row);
-				if (data.context) this.renderContext(data.context, row);
-			}
-			if (data.burn) this.renderBurn(data.burn);
-			if (data.health) this.renderStale(data.health);
+				if (data.stats) this.renderOverview(data.stats, data.health);
+				if (data.stats) this.renderTopSkills(data.stats);
+				if (data.health || data.context) {
+					const row = this.containerEl.createDiv("as-dash-row");
+					if (data.health) this.renderHealth(data.health, row);
+					if (data.context) this.renderContext(data.context, row);
+				}
+				if (data.burn) this.renderBurn(data.burn);
+				if (data.health) this.renderStale(data.health);
+			});
 		}, 10);
 	}
 
