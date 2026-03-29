@@ -117,16 +117,8 @@ function scanFlatMd(
 			const mdFiles = subEntries
 				.filter((f) => !f.isDirectory() && f.name.endsWith(".md") && !IGNORED_FILES.has(f.name.toLowerCase()))
 				.map((f) => f.name)
-			const preferred =
-				mdFiles.find(
-					(f) => f.toLowerCase() === `${entry.name.toLowerCase()}.md`
-				) || mdFiles[0];
-			if (preferred) {
-				const item = parseSkillFile(
-					join(baseDir, entry.name, preferred),
-					type,
-					toolId
-				);
+			for (const f of mdFiles) {
+				const item = parseSkillFile(join(baseDir, entry.name, f), type, toolId);
 				if (item) items.push(item);
 			}
 			continue;

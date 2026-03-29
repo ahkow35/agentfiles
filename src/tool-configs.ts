@@ -1,10 +1,20 @@
 import { homedir } from "os";
-import { existsSync } from "fs";
+import { existsSync, readdirSync } from "fs";
 import { join } from "path";
 import type { ToolConfig } from "./types";
 
+
 const HOME = homedir();
 const XDG_CONFIG = process.env.XDG_CONFIG_HOME || join(HOME, ".config");
+
+function getSuperpowersSkillsPath(): string | null {
+	const base = join(HOME, "Claude", ".claude", "plugins", "cache", "superpowers-marketplace", "superpowers");
+	if (!existsSync(base)) return null;
+	try {
+		const versions = readdirSync(base).sort().reverse();
+		return versions.length > 0 ? join(base, versions[0], "skills") : null;
+	} catch { return null; }
+}
 
 function appExists(name: string): boolean {
 	return (
@@ -49,6 +59,7 @@ export const TOOL_CONFIGS: ToolConfig[] = [
 				type: "skill",
 				pattern: "directory-with-skillmd",
 			},
+			...((() => { const p = getSuperpowersSkillsPath(); return p ? [{ baseDir: p, type: "skill" as const, pattern: "directory-with-skillmd" as const }] : []; })()),
 			{
 				baseDir: join(HOME, ".claude", "commands"),
 				type: "command",
