@@ -86,7 +86,7 @@ export class AgentfilesView extends ItemView {
 			this.listEl.style.display = "none";
 			this.detailEl.style.display = "none";
 			this.dashboardEl.style.display = "block";
-			this.dashboardPanel.render();
+			void this.dashboardPanel.render();
 		} else {
 			this.listEl.style.display = "";
 			this.detailEl.style.display = "";

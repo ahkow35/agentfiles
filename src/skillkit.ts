@@ -80,6 +80,11 @@ export function isSkillkitAvailable(): boolean {
 
 const SKILLKIT_TIMEOUT_MS = 5000
 
+function hasRequiredShape(data: unknown, requiredKeys: string[]): boolean {
+	if (typeof data !== 'object' || data === null) return false
+	return requiredKeys.every(k => k in (data as object))
+}
+
 export function runSkillkitJson<T>(bin: string, args: string[]): Promise<T> {
 	return new Promise((resolve, reject) => {
 		const child = execFile(
@@ -121,6 +126,7 @@ export async function getSkillkitStats(): Promise<Map<string, SkillkitStats>> {
 		return stats;
 	}
 
+	if (!hasRequiredShape(data, ['top_skills'])) return stats;
 	if (!data?.top_skills) return stats;
 
 	const now = Date.now();

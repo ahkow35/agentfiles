@@ -2,6 +2,11 @@ import { setIcon } from "obsidian";
 import { shell } from "electron";
 import { isSkillkitAvailable, runSkillkitJson, getSkillkitBin } from "../skillkit";
 
+function hasRequiredShape(data: unknown, requiredKeys: string[]): boolean {
+	if (typeof data !== 'object' || data === null) return false
+	return requiredKeys.every(k => k in (data as object))
+}
+
 interface StatsJson {
 	period: { days: number };
 	total_invocations: number;
@@ -62,10 +67,10 @@ async function loadData(): Promise<DashboardData> {
 	]);
 
 	return {
-		stats,
-		health,
-		burn: burnArr && burnArr.length > 0 ? burnArr[0] : null,
-		context,
+		stats: stats && hasRequiredShape(stats, ['total_invocations', 'unique_skills', 'period', 'top_skills']) ? stats : null,
+		health: health && hasRequiredShape(health, ['installed', 'usage', 'metadata']) ? health : null,
+		burn: burnArr && Array.isArray(burnArr) && burnArr.length > 0 && hasRequiredShape(burnArr[0], ['agent', 'cost', 'period', 'by_day']) ? burnArr[0] : null,
+		context: context && hasRequiredShape(context, ['always_loaded', 'session_estimate']) ? context : null,
 	};
 }
 
@@ -76,7 +81,7 @@ export class DashboardPanel {
 		this.containerEl = containerEl;
 	}
 
-	render(): void {
+	async render(): Promise<void> {
 		this.containerEl.empty();
 		this.containerEl.addClass("as-dashboard");
 
@@ -85,25 +90,41 @@ export class DashboardPanel {
 			return;
 		}
 
+		this.renderLoading();
+
+		try {
+			const data = await loadData();
+
+			this.containerEl.empty();
+			this.containerEl.addClass("as-dashboard");
+
+			if (data.stats) this.renderOverview(data.stats, data.health);
+			if (data.stats) this.renderTopSkills(data.stats);
+			if (data.health || data.context) {
+				const row = this.containerEl.createDiv("as-dash-row");
+				if (data.health) this.renderHealth(data.health, row);
+				if (data.context) this.renderContext(data.context, row);
+			}
+			if (data.burn) this.renderBurn(data.burn);
+			if (data.health) this.renderStale(data.health);
+		} catch (e) {
+			this.containerEl.empty();
+			this.containerEl.addClass("as-dashboard");
+			this.renderError((e as Error).message);
+		}
+	}
+
+	private renderLoading(): void {
 		const loading = this.containerEl.createDiv("as-dash-loading");
-		const spinner = loading.createDiv("as-dash-spinner");
+		loading.createDiv("as-dash-spinner");
 		loading.createDiv({ cls: "as-dash-loading-text", text: "Loading analytics..." });
+	}
 
-		setTimeout(() => {
-			void loadData().then((data) => {
-				loading.remove();
-
-				if (data.stats) this.renderOverview(data.stats, data.health);
-				if (data.stats) this.renderTopSkills(data.stats);
-				if (data.health || data.context) {
-					const row = this.containerEl.createDiv("as-dash-row");
-					if (data.health) this.renderHealth(data.health, row);
-					if (data.context) this.renderContext(data.context, row);
-				}
-				if (data.burn) this.renderBurn(data.burn);
-				if (data.health) this.renderStale(data.health);
-			});
-		}, 10);
+	private renderError(message: string): void {
+		this.containerEl.createDiv({
+			cls: "as-dash-error",
+			text: `Analytics unavailable: ${message}`,
+		});
 	}
 
 	private renderNoSkillkit(): void {
