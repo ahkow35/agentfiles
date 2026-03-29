@@ -34,6 +34,49 @@ function cliExists(name: string): boolean {
 
 export const TOOL_CONFIGS: ToolConfig[] = [
 	{
+		id: "claude-code-personal",
+		name: "Claude Code (Personal)",
+		color: "#f97316",
+		icon: "brain",
+		paths: [
+			{
+				baseDir: join(HOME, ".claude", "skills"),
+				type: "skill",
+				pattern: "directory-with-skillmd",
+			},
+			{
+				baseDir: join(HOME, "Claude", ".claude", "skills"),
+				type: "skill",
+				pattern: "directory-with-skillmd",
+			},
+			{
+				baseDir: join(HOME, ".claude", "commands"),
+				type: "command",
+				pattern: "flat-md",
+			},
+			{
+				baseDir: join(HOME, "Claude", ".claude", "commands"),
+				type: "command",
+				pattern: "flat-md",
+			},
+		],
+		agentPaths: [
+			{
+				baseDir: join(HOME, ".claude", "agents"),
+				type: "agent",
+				pattern: "flat-md",
+			},
+			{
+				baseDir: join(HOME, "Claude", ".claude", "agents"),
+				type: "agent",
+				pattern: "flat-md",
+			},
+		],
+		isInstalled: () =>
+			existsSync(join(HOME, ".claude")) ||
+			existsSync(join(HOME, "Claude", ".claude")),
+	},
+	{
 		id: "claude-code",
 		name: "Claude Code",
 		color: "#f97316",
@@ -163,43 +206,6 @@ export const TOOL_CONFIGS: ToolConfig[] = [
 			existsSync(join(HOME, ".copilot")) || cliExists("copilot"),
 	},
 	{
-		id: "amp",
-		name: "Amp",
-		color: "#ec4899",
-		icon: "zap",
-		paths: [
-			{
-				baseDir: join(XDG_CONFIG, "amp", "skills"),
-				type: "skill",
-				pattern: "directory-with-skillmd",
-			},
-		],
-		agentPaths: [],
-		isInstalled: () =>
-			existsSync(join(XDG_CONFIG, "amp", "config.json")) ||
-			existsSync(join(XDG_CONFIG, "amp", "settings.json")) ||
-			cliExists("amp"),
-	},
-	{
-		id: "opencode",
-		name: "OpenCode",
-		color: "#ef4444",
-		icon: "terminal",
-		paths: [
-			{
-				baseDir: join(XDG_CONFIG, "opencode", "skills"),
-				type: "skill",
-				pattern: "directory-with-skillmd",
-			},
-		],
-		agentPaths: [],
-		isInstalled: () =>
-			appExists("OpenCode") ||
-			existsSync(join(XDG_CONFIG, "opencode", "opencode.json")) ||
-			existsSync(join(XDG_CONFIG, "opencode", "opencode.jsonc")) ||
-			cliExists("opencode"),
-	},
-	{
 		id: "pi",
 		name: "Pi",
 		color: "#06b6d4",
@@ -255,14 +261,5 @@ export const TOOL_CONFIGS: ToolConfig[] = [
 		],
 		agentPaths: [],
 		isInstalled: () => existsSync(join(HOME, ".agents", "skills")),
-	},
-	{
-		id: "aider",
-		name: "Aider",
-		color: "#eab308",
-		icon: "wrench",
-		paths: [],
-		agentPaths: [],
-		isInstalled: () => cliExists("aider"),
 	},
 ];
