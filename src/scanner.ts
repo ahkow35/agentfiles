@@ -1,3 +1,5 @@
+import * as os from 'os'
+import * as path from 'path'
 import {
 	existsSync,
 	readdirSync,
@@ -10,6 +12,15 @@ import { parseYaml } from "obsidian";
 import { createHash } from "crypto";
 import { TOOL_CONFIGS } from "./tool-configs";
 import type { SkillItem, SkillPath, SkillType, ChopsSettings } from "./types";
+import { ErrorBuffer } from './error-buffer'
+
+export const scannerErrors = new ErrorBuffer()
+
+export function isSafePath(inputPath: string): boolean {
+	const home = os.homedir()
+	const resolved = path.resolve(inputPath)
+	return resolved.startsWith(home)
+}
 
 const IGNORED_FILES = new Set([
 	"readme.md",
@@ -24,7 +35,7 @@ function hashPath(p: string): string {
 	return createHash("sha256").update(p).digest("hex").slice(0, 12);
 }
 
-function parseFrontmatter(raw: string): {
+export function parseFrontmatter(raw: string): {
 	frontmatter: Record<string, unknown>;
 	content: string;
 } {
@@ -38,12 +49,13 @@ function parseFrontmatter(raw: string): {
 			frontmatter: typeof parsed === "object" && parsed ? parsed : {},
 			content: match[2],
 		};
-	} catch { /* empty */
+	} catch (e) {
+		scannerErrors.add(`Failed to parse frontmatter: ${(e as Error).message}`)
 		return { frontmatter: {}, content: raw };
 	}
 }
 
-function extractName(
+export function extractName(
 	frontmatter: Record<string, unknown>,
 	content: string,
 	filePath: string,
@@ -95,9 +107,16 @@ function scanFlatMd(
 				if (item) items.push(item);
 				continue;
 			}
-			const mdFiles = readdirSync(join(baseDir, entry.name)).filter(
-				(f) => f.endsWith(".md") && !IGNORED_FILES.has(f.toLowerCase())
-			);
+			let subEntries: import("fs").Dirent[]
+			try {
+				subEntries = readdirSync(join(baseDir, entry.name), { withFileTypes: true })
+			} catch (e) {
+				scannerErrors.add(`Cannot read directory ${join(baseDir, entry.name)}: ${(e as Error).message}`)
+				continue
+			}
+			const mdFiles = subEntries
+				.filter((f) => !f.isDirectory() && f.name.endsWith(".md") && !IGNORED_FILES.has(f.name.toLowerCase()))
+				.map((f) => f.name)
 			const preferred =
 				mdFiles.find(
 					(f) => f.toLowerCase() === `${entry.name.toLowerCase()}.md`
@@ -157,7 +176,8 @@ function parseSkillFile(
 		let realPath: string;
 		try {
 			realPath = realpathSync(filePath);
-		} catch { /* empty */
+		} catch (e) {
+			scannerErrors.add(`Cannot resolve real path for ${filePath}: ${(e as Error).message}`)
 			realPath = filePath;
 		}
 
@@ -177,7 +197,8 @@ function parseSkillFile(
 			isFavorite: false,
 			collections: [],
 		};
-	} catch { /* empty */
+	} catch (e) {
+		scannerErrors.add(`Failed to parse ${filePath}: ${(e as Error).message}`)
 		return null;
 	}
 }
@@ -194,6 +215,10 @@ function scanPath(sp: SkillPath, toolId: string): SkillItem[] {
 }
 
 function scanProjectSkills(projectRoot: string, toolId: string): SkillItem[] {
+	if (!isSafePath(projectRoot)) {
+		scannerErrors.add(`Blocked unsafe scan path: ${projectRoot}`)
+		return []
+	}
 	const results: SkillItem[] = [];
 	const projectDirs = [
 		{ sub: ".claude/skills", type: "skill" as SkillType, pattern: "directory-with-skillmd" as ScanPattern },
@@ -212,35 +237,23 @@ function scanProjectSkills(projectRoot: string, toolId: string): SkillItem[] {
 }
 
 export function scanAll(settings: ChopsSettings): Map<string, SkillItem> {
-	const items = new Map<string, SkillItem>();
-	const nameMap = new Map<string, string>();
+	const allItems: SkillItem[] = [];
 
-	function addItem(item: SkillItem, toolId: string): void {
-		const existingById = items.get(item.id);
-		if (existingById) {
-			if (!existingById.tools.includes(toolId)) {
-				existingById.tools.push(toolId);
-			}
-			return;
-		}
-
-		const existingId = nameMap.get(item.name);
-		if (existingId) {
-			const existing = items.get(existingId);
-			if (existing && !existing.tools.includes(toolId)) {
+	function collectItem(item: SkillItem, toolId: string): void {
+		const existing = allItems.find((i) => i.id === item.id);
+		if (existing) {
+			if (!existing.tools.includes(toolId)) {
 				existing.tools.push(toolId);
 			}
 			return;
 		}
-
 		item.isFavorite = settings.favorites.includes(item.id);
 		for (const [colName, colIds] of Object.entries(settings.collections)) {
 			if (colIds.includes(item.id)) {
 				item.collections.push(colName);
 			}
 		}
-		items.set(item.id, item);
-		nameMap.set(item.name, item.id);
+		allItems.push(item);
 	}
 
 	for (const tool of TOOL_CONFIGS) {
@@ -251,7 +264,7 @@ export function scanAll(settings: ChopsSettings): Map<string, SkillItem> {
 		const allPaths = [...tool.paths, ...tool.agentPaths];
 		for (const sp of allPaths) {
 			for (const item of scanPath(sp, tool.id)) {
-				addItem(item, tool.id);
+				collectItem(item, tool.id);
 			}
 		}
 	}
@@ -259,10 +272,25 @@ export function scanAll(settings: ChopsSettings): Map<string, SkillItem> {
 	for (const projectPath of settings.customScanPaths) {
 		if (!existsSync(projectPath)) continue;
 		for (const item of scanProjectSkills(projectPath, "claude-code")) {
-			addItem(item, "claude-code");
+			collectItem(item, "claude-code");
 		}
 	}
 
+	// Name-collision pass: rename duplicates with toolId suffix
+	const nameCount = new Map<string, number>()
+	for (const item of allItems) {
+		nameCount.set(item.name, (nameCount.get(item.name) ?? 0) + 1)
+	}
+	for (const item of allItems) {
+		if ((nameCount.get(item.name) ?? 0) > 1) {
+			item.name = `${item.name} (${item.tools[0]})`
+		}
+	}
+
+	const items = new Map<string, SkillItem>();
+	for (const item of allItems) {
+		items.set(item.id, item);
+	}
 	return items;
 }
 
